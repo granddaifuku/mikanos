@@ -5,7 +5,8 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Protocol/LoadedImage.h>
 #include <Protocol/SimpleFileSystem.h>
-#include <protocols/BlockIo.h>
+#include <Protocol/DiskIo2.h>
+#include <Protocol/BlockIo.h>
 #include <Guid/FileInfo.h>
 
 struct MemoryMap {
@@ -31,7 +32,7 @@ const CHAR16* GetMemoryTypeUnicode(EFI_MEMORY_TYPE type) {
         case EfiACPIReclaimMemory: return L"EfiACPIReclaimMemory";
         case EfiACPIMemoryNVS: return L"EfiACPIMemoryNVS";
         case EfiMemoryMappedIO: return L"EfiMemoryMappedIO";
-        case EfiMemoryMappedIOPortSpace: return L:"EfiMemoryMappedIOPortSpace";
+        case EfiMemoryMappedIOPortSpace: return L"EfiMemoryMappedIOPortSpace";
         case EfiPalCode: return L"EfiPalCode";
         case EfiPersistentMemory: return L"EfiPersistentMemory";
         case EfiMaxMemoryType: return L"EfiMaxMemoryType";
@@ -45,12 +46,12 @@ EFI_STATUS GetMemoryMap(struct MemoryMap* map) {
     }
 
     map->map_size = map->buffer_size;
-    return gBS->GetMrmoryMap(
+    return gBS->GetMemoryMap(
         &map->map_size,
         (EFI_MEMORY_DESCRIPTOR*)map->buffer,
         &map->map_key,
         &map->descriptor_size,
-        &map->descriptor_versioon
+        &map->descriptor_version
     );
 }
 
@@ -92,13 +93,13 @@ EFI_STATUS OpenRootDir(EFI_HANDLE image_handle, EFI_FILE_PROTOCOL** root) {
         image_handle,
         &gEfiLoadedImageProtocolGuid,
         (VOID**)&loaded_image,
-        image_hadle,
+        image_handle,
         NULL,
         EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
 
     gBS->OpenProtocol(
         loaded_image->DeviceHandle,
-        &gEfiSimpleFilsSystemProtocolGuid,
+        &gEfiSimpleFileSystemProtocolGuid,
         (VOID**)&fs,
         image_handle,
         NULL,
@@ -112,6 +113,7 @@ EFI_STATUS OpenRootDir(EFI_HANDLE image_handle, EFI_FILE_PROTOCOL** root) {
 EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
     UINTN num_gop_handles = 0;
     EFI_HANDLE* gop_handles = NULL;
+    
     gBS->LocateHandleBuffer(
         ByProtocol,
         &gEfiGraphicsOutputProtocolGuid,
@@ -122,7 +124,7 @@ EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) 
 
     gBS->OpenProtocol(
         gop_handles[0],
-        &gEfiGraphicOutputProtocolGuid,
+        &gEfiGraphicsOutputProtocolGuid,
         (VOID**)gop,
         image_handle,
         NULL,
@@ -138,13 +140,13 @@ const CHAR16* GetPixelFormatUnicode(EFI_GRAPHICS_PIXEL_FORMAT fmt) {
     switch (fmt) {
         case PixelRedGreenBlueReserved8BitPerColor:
             return L"PixelRedGreenBlueReserved8BitPerColor";
-        case PixelBludGreenRedReserved8BitPerColor:
+        case PixelBlueGreenRedReserved8BitPerColor:
             return L"PixelBlueGreenRedReserved8BitPerColor";
         case PixelBitMask:
             return L"PixelBitMask";
         case PixelBltOnly:
             return L"PixelBltOnly";
-        case PixedFormatMax:
+        case PixelFormatMax:
             return L"PixelFormatMax";
         default:
             return L"InvalidPixelFormat";
@@ -161,7 +163,7 @@ EFI_STATUS EFIAPI UefiMain(
         struct MemoryMap memmap = {sizeof(memmap_buf), memmap_buf, 0, 0, 0, 0};
         GetMemoryMap(&memmap);
 
-        EFI_FILE_PROTOCOL* roor_dir;
+        EFI_FILE_PROTOCOL* root_dir;
         OpenRootDir(image_handle, &root_dir);
 
         EFI_FILE_PROTOCOL* memmap_file;
@@ -190,7 +192,7 @@ EFI_STATUS EFIAPI UefiMain(
         
         UINT8* frame_buffer = (UINT8*)gop->Mode->FrameBufferBase;
         for (UINTN i = 0; i < gop->Mode->FrameBufferSize; ++i) {
-            frame_buffer[i] = 0;
+            frame_buffer[i] = 255;
         }
 
         // read kernel
