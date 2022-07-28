@@ -1,4 +1,6 @@
 *.o
 *.elf
 *.d
+*.swp
 hankaku.bin
+compile_flags.txt
